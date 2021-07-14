@@ -1,0 +1,181 @@
+/* This file is part of the slog library.
+ *
+ * Copyright (C) 2021 by Sergey Lafin
+ *
+ * Licensed under the LGPL v2.1, see the file LICENSE in base directory. */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <stdarg.h>
+
+#include "slog.h"
+#include "slog_log.h"
+#include "slog_fmt.h"
+#include "slog_mem.h"
+
+#include "slog_color.h"
+
+#define SLOG_DEFAULT_FORMAT "[%l] %c: %L"
+
+struct slog_stream {
+    /* path to the file */
+    const char *path;
+    /* file descriptor */
+    FILE *file;
+    /* slog_fmt is a stream of tokens */
+    struct slog_fmt *fmt_head;
+    /* redirect to the secondary output */
+    char to_stdout;
+    /* should the output to the stdout be colorized*/
+    char colorized;
+    /* which loglevels should be suppressed */
+    short suppress;
+};
+
+slog_stream *slog_create (const char *path) {
+    slog_stream *file = malloc (sizeof (struct slog_stream));
+    if (!file)
+        return NULL;
+
+    file->to_stdout = 1;
+    file->colorized = 0;
+    /* we only suppress debug messages */
+    file->suppress  = slog_loglevel_debug;
+    slog_format (file, SLOG_DEFAULT_FORMAT);
+    if (!path) {
+        file->path = NULL;
+        file->file = NULL;
+        return file;
+    }
+    file->file = fopen (path, "w");
+    if (!file->file) {
+        slog_log_error ("Failed to open file %s for writing", path);
+        free (file);
+        return NULL;
+    }
+    size_t len = strlen (path) + 1;
+    file->path = malloc (len);
+    if (!file->path) {
+        free (file);
+        fclose (file->file);
+        return NULL;
+    }
+
+    memcpy ((char *)file->path, path, len);
+    return file;
+}
+slog_stream *slog_desc (FILE *fd) {
+    slog_stream *f = slog_create (NULL);
+    f->file = fd;
+    return f;
+}
+
+void slog_close (slog_stream *file) {
+    assert (file != NULL);
+    if (file->file)
+        fclose (file->file);
+    if (file->path)
+        free ((char *)file->path);
+    if (file->fmt_head)
+        slog_fmt_clear (file->fmt_head);
+
+    slog_free (file);
+}
+
+static slog_color _get_level_color (slog_loglevel level) {
+    switch (level) {
+        case slog_loglevel_message:
+            return slog_color_message;
+        case slog_loglevel_warning:
+            return slog_color_warning;
+        case slog_loglevel_error:
+            return slog_color_error;
+        default:
+            return slog_color_reset;
+    }
+}
+void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...) {
+#define colorize()\
+    if (stream->colorized) {\
+        slog_set_color (_get_level_color (level));\
+    }
+
+    assert (stream != NULL);
+    assert (fmt != NULL);
+
+    /* the message should be suppressed */
+    if (stream->suppress & level)
+        return;
+
+    va_list va,
+            vac;
+    va_start (va, fmt);
+    va_copy (vac, va);
+
+    size_t len = vsnprintf (NULL, 0, fmt, va) + 1;
+    char *message = slog_xalloc (len);
+    if (!message) {
+        slog_log_error ("Failed to allocate memory for a log message");
+        return;
+    }
+
+    va_copy (va, vac);
+    vsnprintf (message, len, fmt, va);
+    va_end (va);
+    va_end (vac);
+
+    char *end_buf = slog_fmt_get_str (level, stream->fmt_head, message);
+    slog_free (message);
+    if (!end_buf) {
+        slog_log_error ("Failed to get a formated string");
+        return;
+    }
+    len = strlen (end_buf);
+    if (stream->file) {
+        if (stream->to_stdout) {
+            colorize ();
+            puts (end_buf);
+        }
+        end_buf[len] = '\n';
+        if (fwrite (end_buf, 1, len + 1, stream->file) != len + 1)
+            slog_log_error ("Log message written *partially* into the file %s", stream->path);
+    } else {
+        colorize ();
+        puts (end_buf);
+    }
+    if (stream->colorized)
+        slog_reset_color ();
+
+    slog_free (end_buf);
+}  
+char slog_format (slog_stream *file, const char *fmt) {
+    assert (file != NULL);
+    
+    slog_fmt *f = slog_fmt_create (fmt);
+    if (!f)
+        return 1;
+    if (file->fmt_head)
+        slog_fmt_clear (file->fmt_head);
+    file->fmt_head = f;
+    return 0;
+}
+
+void slog_output_to_stdout (slog_stream *file, char flag) {
+    assert (file != NULL);
+    file->to_stdout = flag;
+}
+
+void slog_colorized (slog_stream *file, char flag) {
+    file->colorized = flag;
+}
+
+void slog_suppress (slog_stream *file, short mask) {
+    assert (file != NULL);
+    file->suppress = mask;
+}
+short slog_get_suppressed (slog_stream *file) {
+    assert (file != NULL);
+    return file->suppress;
+}
