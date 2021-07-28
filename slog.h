@@ -22,14 +22,11 @@
 extern "C" {
 #endif
 
-#define slog_message(stream, message)\
-    slog_printf(stream, slog_loglevel_message, message)
-#define slog_warning(stream, message)\
-    slog_printf(stream, slog_loglevel_warning, message)
-#define slog_error(stream, message)\
-    slog_printf(stream, slog_loglevel_error, message)
-#define slog_debug(stream, message)\
-    slog_printf(stream, slog_loglevel_debug, message)
+#if __STDC_VERSION__ >= 199903L || defined (__cplusplus)
+#   define __inline inline
+#else
+#   define __inline
+#endif
 
 #define SLOG_VERSION 100
 #include "slog_export.h"
@@ -65,6 +62,17 @@ SLOG_API void      slog_close (slog_stream  *stream);
  * @param ...
  *   variadic arguments for the format string */
 SLOG_API void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...);
+/* slog_vprintf - print a formated message (va_list)
+ * @param stream
+ *   pointer to the slog_stream structure
+ * @param level
+ *   log level of the message
+ * @param fmt
+ *   message or formated string (like in printf ())
+ * @param list
+ *   variadic arguments for the format string */
+SLOG_API void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va_list list);
+
 /* slog_format - set the format string for the slog_stream
  * @param stream
  *   pointer to the string slog_stream structure
@@ -105,4 +113,37 @@ SLOG_API short slog_get_suppressed (slog_stream *stream);
 }
 #endif
 
+/****************************************************************/
+/* Made as inline funcs to allow dropping of variadic arguments */
+/****************************************************************/
+
+#include <stdarg.h>
+
+static __inline void slog_message (slog_stream *stream, const char *fmt, ...) {
+    va_list list;
+    va_start (list, fmt);
+    slog_vprintf (stream, slog_loglevel_message, fmt, list);
+    va_end (list);
+}
+static __inline void slog_warning (slog_stream *stream, const char *fmt, ...) {
+    va_list list;
+    va_start (list, fmt);
+    slog_vprintf (stream, slog_loglevel_warning, fmt, list);
+    va_end (list);
+}
+static __inline void slog_error (slog_stream *stream, const char *fmt, ...) {
+    va_list list;
+    va_start (list, fmt);
+    slog_vprintf (stream, slog_loglevel_error, fmt, list);
+    va_end (list);
+}
+static __inline void slog_debug (slog_stream *stream, const char *fmt, ...) {
+    va_list list;
+    va_start (list, fmt);
+    slog_vprintf (stream, slog_loglevel_debug, fmt, list);
+    va_end (list);
+}
+    
+
+#undef __inline
 #endif 

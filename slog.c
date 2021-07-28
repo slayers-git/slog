@@ -96,7 +96,18 @@ static slog_color _get_level_color (slog_loglevel level) {
             return slog_color_reset;
     }
 }
+
 void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...) {
+    assert (stream != NULL);
+    assert (fmt != NULL);
+
+    va_list va;
+    va_start (va, fmt);
+    slog_vprintf (stream, level, fmt, va);
+    va_end (va);
+
+}
+void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va_list list) {
 #define colorize()\
     if (stream->colorized) {\
         slog_set_color (_get_level_color (level));\
@@ -109,21 +120,16 @@ void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...
     if (stream->suppress & level)
         return;
 
-    va_list va,
-            vac;
-    va_start (va, fmt);
-    va_copy (vac, va);
-
-    size_t len = vsnprintf (NULL, 0, fmt, va) + 1;
+    va_list vac;
+    va_copy (vac, list);
+    size_t len = vsnprintf (NULL, 0, fmt, vac) + 1;
     char *message = slog_xalloc (len);
     if (!message) {
         slog_log_error ("Failed to allocate memory for a log message");
         return;
     }
 
-    va_copy (va, vac);
-    vsnprintf (message, len, fmt, va);
-    va_end (va);
+    vsnprintf (message, len, fmt, list);
     va_end (vac);
 
     char *end_buf = slog_fmt_get_str (level, stream->fmt_head, message);
