@@ -16,6 +16,8 @@ typedef enum slog_loglevel {
     slog_loglevel_warning = (1 << 1),
     slog_loglevel_error   = (1 << 2),
     slog_loglevel_debug   = (1 << 3),
+
+    slog_loglevel_fatal   = (1 << 4),
 } slog_loglevel;
 
 SLOG_API const char *slog_loglevel_tostr (const slog_loglevel level);

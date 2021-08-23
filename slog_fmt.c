@@ -132,7 +132,7 @@ slog_fmt *slog_fmt_create (const char *str) {
     /* fmt head node */
     slog_fmt_tok *fmt_tok_head = _alloc_head (),
     /* fmt last node */
-             *fmtp = fmt_tok_head;
+                 *fmtp = fmt_tok_head;
 
     /* fmt_str head node */
     slog_fmt_str *fmt_str_head = _alloc_head_str (),

@@ -24,11 +24,12 @@ struct slog_stream {
     const char *path;
     /* file descriptor */
     FILE *file;
-    /* slog_fmt is a stream of tokens */
+    /* slog_fmt is a stream of tokens containing 
+     * the info about the format */
     struct slog_fmt *fmt_head;
     /* redirect to the secondary output */
     char to_stdout;
-    /* should the output to the stdout be colorized*/
+    /* should the output to stdout be colorized */
     char colorized;
     /* which loglevels should be suppressed */
     short suppress;
@@ -41,7 +42,7 @@ slog_stream *slog_create (const char *path) {
 
     file->to_stdout = 1;
     file->colorized = 0;
-    /* we only suppress debug messages */
+    /* we only suppress debug messages by default */
     file->suppress  = slog_loglevel_debug;
     slog_format (file, SLOG_DEFAULT_FORMAT);
     if (!path) {
@@ -92,6 +93,8 @@ static slog_color _get_level_color (slog_loglevel level) {
             return slog_color_warning;
         case slog_loglevel_error:
             return slog_color_error;
+        case slog_loglevel_fatal:
+            return slog_color_fatal;
         default:
             return slog_color_reset;
     }
@@ -135,7 +138,7 @@ void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va
     char *end_buf = slog_fmt_get_str (level, stream->fmt_head, message);
     slog_free (message);
     if (!end_buf) {
-        slog_log_error ("Failed to get a formated string");
+        slog_log_error ("Failed to get a formatted string");
         return;
     }
     len = strlen (end_buf);
@@ -146,7 +149,7 @@ void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va
         }
         end_buf[len] = '\n';
         if (fwrite (end_buf, 1, len + 1, stream->file) != len + 1)
-            slog_log_error ("Log message written *partially* into the file %s", stream->path);
+            slog_log_error ("Log message was written *partially* into the file %s", stream->path);
     } else {
         colorize ();
         puts (end_buf);
@@ -179,6 +182,8 @@ void slog_colorized (slog_stream *file, char flag) {
 
 void slog_suppress (slog_stream *file, short mask) {
     assert (file != NULL);
+    if (mask & slog_loglevel_fatal)
+        mask &= ~slog_loglevel_fatal;
     file->suppress = mask;
 }
 short slog_get_suppressed (slog_stream *file) {

@@ -16,6 +16,8 @@ const char *slog_loglevel_tostr (const slog_loglevel level) {
             return "Error";
         case slog_loglevel_debug:
             return "Debug";
+        case slog_loglevel_fatal:
+            return "Fatal";
         default:
             return "";
     }

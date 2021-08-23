@@ -18,7 +18,8 @@ typedef enum {
 
     slog_color_message = slog_color_white,
     slog_color_warning = slog_color_yellow,
-    slog_color_error   = slog_color_red
+    slog_color_error   = slog_color_red,
+    slog_color_fatal   = slog_color_red,
 } slog_color;
 
 SLOG_API void slog_set_color (const slog_color color);

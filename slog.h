@@ -22,13 +22,32 @@
 extern "C" {
 #endif
 
-#if __STDC_VERSION__ >= 199903L || defined (__cplusplus)
+#if __STDC_VERSION__ >= 199903L
 #   define __inline inline
+#   if __STDC_VERSION__ >= 201112L
+#       define __noreturn _Noreturn
+#   endif
+#elif defined (__cplusplus)
+#   define __inline inline
+#   define __noreturn [[ noreturn ]]
 #else
 #   define __inline
 #endif
 
-#define SLOG_VERSION 100
+/* Check if the formatting is correct */
+#if defined (__GNUC__) || defined (__MINGW32__) || defined (__MINGW64__)
+#   define __fmt_check(x, y) __attribute__((format(printf, x, y)))
+#   ifndef __noreturn
+#       define __noreturn __attribute__((noreturn))
+#   endif
+#else
+#   define __fmt_check(x, y)
+#   ifndef __noreturn
+#       define __noreturn
+#   endif
+#endif
+
+#define SLOG_VERSION 101
 #include "slog_export.h"
 #include "slog_loglevel.h"
 #include <stdio.h>
@@ -50,7 +69,7 @@ SLOG_API slog_stream *slog_desc (FILE *fd);
 /* slog_close - close an slog_stream structure
  * @param stream
  *   stream to be closed */
-SLOG_API void      slog_close (slog_stream  *stream);
+SLOG_API void slog_close (slog_stream *stream);
 
 /* slog_printf - print a formated message
  * @param stream
@@ -61,7 +80,7 @@ SLOG_API void      slog_close (slog_stream  *stream);
  *   message or formated string (like in printf ())
  * @param ...
  *   variadic arguments for the format string */
-SLOG_API void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...);
+SLOG_API void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...) __fmt_check(3, 4);
 /* slog_vprintf - print a formated message (va_list)
  * @param stream
  *   pointer to the slog_stream structure
@@ -78,7 +97,7 @@ SLOG_API void slog_vprintf (slog_stream *stream, slog_loglevel level, const char
  *   pointer to the string slog_stream structure
  * @param fmt
  *   format string
- * #return
+ * @return
  *   0 on success, non-zero otherwise */
 SLOG_API char slog_format (slog_stream *stream, const char *fmt);
 
@@ -100,7 +119,9 @@ SLOG_API void slog_colorized (slog_stream *stream, char state);
  * @param stream
  *   pointer to the slog_stream structure
  * @param mask
- *   selected loglevels to suppress */
+ *   selected loglevels to be suppressed
+ * @note
+ *   slog_loglevel_fatal cannot be suppressed */
 SLOG_API void slog_suppress (slog_stream *stream, short mask);
 /* slog_get_suppressed - get suppressed loglevels
  * @param stream
@@ -109,41 +130,60 @@ SLOG_API void slog_suppress (slog_stream *stream, short mask);
  *   suppressed levels */
 SLOG_API short slog_get_suppressed (slog_stream *stream);
 
-#ifdef __cplusplus
-}
-#endif
-
 /****************************************************************/
 /* Made as inline funcs to allow dropping of variadic arguments */
 /****************************************************************/
 
 #include <stdarg.h>
+#include <stdlib.h>
 
-static __inline void slog_message (slog_stream *stream, const char *fmt, ...) {
+static __inline __fmt_check(2, 3) void slog_message (slog_stream *stream, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_message, fmt, list);
     va_end (list);
 }
-static __inline void slog_warning (slog_stream *stream, const char *fmt, ...) {
+static __inline __fmt_check(2, 3) void slog_warning (slog_stream *stream, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_warning, fmt, list);
     va_end (list);
 }
-static __inline void slog_error (slog_stream *stream, const char *fmt, ...) {
+static __inline __fmt_check(2, 3) void slog_error (slog_stream *stream, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_error, fmt, list);
     va_end (list);
 }
-static __inline void slog_debug (slog_stream *stream, const char *fmt, ...) {
+static __inline __fmt_check(2, 3) void slog_debug (slog_stream *stream, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_debug, fmt, list);
     va_end (list);
 }
-    
+
+/* slog_fatal - print a fatal error message and exit the program with "status"
+ * @param stream
+ *   pointer to slog_stream structure
+ * @param status
+ *   exit status
+ * @param fmt
+ *   format string
+ * @param ...
+ *   variadic arguments for the format string */
+static __inline __fmt_check(3, 4) __noreturn void slog_fatal (slog_stream *stream, int status, const char *fmt, ...) {
+    va_list list;
+    va_start (list, fmt);
+    slog_vprintf (stream, slog_loglevel_fatal, fmt, list);
+    va_end (list);
+    exit (status);
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #undef __inline
+#undef __fmt_check
+#undef __noreturn
 #endif 
