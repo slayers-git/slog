@@ -24,7 +24,8 @@ set (INCLUDE
 
 set (EXAMPLES
     ./test/fmt.c
-    ./test/logfile.c)
+    ./test/logfile.c
+    ./test/loglevels.c)
 
 if (CYGWIN OR MINGW OR UNIX)
     set (CMAKE_C_FLAGS_DEBUG "-Og -g")

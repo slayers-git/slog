@@ -47,7 +47,7 @@ extern "C" {
 #   endif
 #endif
 
-#define SLOG_VERSION 101
+#define SLOG_VERSION 102
 #include "slog_export.h"
 #include "slog_loglevel.h"
 #include <stdio.h>
@@ -80,7 +80,7 @@ SLOG_API void slog_close (slog_stream *stream);
  *   message or formated string (like in printf ())
  * @param ...
  *   variadic arguments for the format string */
-SLOG_API void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...) __fmt_check(3, 4);
+SLOG_API void slog_printf (slog_stream *stream, const slog_loglevel *level, const char *fmt, ...) __fmt_check(3, 4);
 /* slog_vprintf - print a formated message (va_list)
  * @param stream
  *   pointer to the slog_stream structure
@@ -90,7 +90,7 @@ SLOG_API void slog_printf (slog_stream *stream, slog_loglevel level, const char 
  *   message or formated string (like in printf ())
  * @param list
  *   variadic arguments for the format string */
-SLOG_API void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va_list list);
+SLOG_API void slog_vprintf (slog_stream *stream, const slog_loglevel *level, const char *fmt, va_list list);
 
 /* slog_format - set the format string for the slog_stream
  * @param stream
@@ -106,14 +106,14 @@ SLOG_API char slog_format (slog_stream *stream, const char *fmt);
  *   pointer to the slog_stream structure
  * @param state
  *   state (0, 1) */
-SLOG_API void slog_output_to_stdout (slog_stream *stream, char);
+SLOG_API void slog_output_to_stdout (slog_stream *stream, unsigned char state);
 
 /* slog_colorized - set the colorized flag
  * @param stream
  *   pointer to the slog_stream structure
  * @param state
  *   state (0, 1) */
-SLOG_API void slog_colorized (slog_stream *stream, char state);
+SLOG_API void slog_colorized (slog_stream *stream, unsigned char state);
 
 /* slog_suppress - suppress certain loglevels
  * @param stream
@@ -122,13 +122,13 @@ SLOG_API void slog_colorized (slog_stream *stream, char state);
  *   selected loglevels to be suppressed
  * @note
  *   slog_loglevel_fatal cannot be suppressed */
-SLOG_API void slog_suppress (slog_stream *stream, short mask);
+SLOG_API void slog_suppress (slog_stream *stream, unsigned int mask);
 /* slog_get_suppressed - get suppressed loglevels
  * @param stream
  *   pointer to the slog_stream structure
  * @return
  *   suppressed levels */
-SLOG_API short slog_get_suppressed (slog_stream *stream);
+SLOG_API unsigned int slog_get_suppressed (slog_stream *stream);
 
 /****************************************************************/
 /* Made as inline funcs to allow dropping of variadic arguments */
@@ -171,7 +171,7 @@ static __inline __fmt_check(2, 3) void slog_debug (slog_stream *stream, const ch
  *   format string
  * @param ...
  *   variadic arguments for the format string */
-static __inline __fmt_check(3, 4) __noreturn void slog_fatal (slog_stream *stream, int status, const char *fmt, ...) {
+static __noreturn __inline __fmt_check(3, 4) void slog_fatal (slog_stream *stream, int status, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_fatal, fmt, list);

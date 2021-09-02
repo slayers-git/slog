@@ -4,15 +4,15 @@
  *
  * Licensed under the LGPL v2.1, see the file LICENSE in base directory. */
 
+#include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <stdarg.h>
 
 #include "slog.h"
-#include "slog_log.h"
 #include "slog_fmt.h"
+#include "slog_log.h"
 #include "slog_mem.h"
 
 #include "slog_color.h"
@@ -28,11 +28,11 @@ struct slog_stream {
      * the info about the format */
     struct slog_fmt *fmt_head;
     /* redirect to the secondary output */
-    char to_stdout;
+    unsigned char to_stdout;
     /* should the output to stdout be colorized */
-    char colorized;
+    unsigned char colorized;
     /* which loglevels should be suppressed */
-    short suppress;
+    unsigned int suppress;
 };
 
 slog_stream *slog_create (const char *path) {
@@ -43,7 +43,7 @@ slog_stream *slog_create (const char *path) {
     file->to_stdout = 1;
     file->colorized = 0;
     /* we only suppress debug messages by default */
-    file->suppress  = slog_loglevel_debug;
+    file->suppress  = slog_loglevel_debug_s.id;
     slog_format (file, SLOG_DEFAULT_FORMAT);
     if (!path) {
         file->path = NULL;
@@ -85,22 +85,7 @@ void slog_close (slog_stream *file) {
     slog_free (file);
 }
 
-static slog_color _get_level_color (slog_loglevel level) {
-    switch (level) {
-        case slog_loglevel_message:
-            return slog_color_message;
-        case slog_loglevel_warning:
-            return slog_color_warning;
-        case slog_loglevel_error:
-            return slog_color_error;
-        case slog_loglevel_fatal:
-            return slog_color_fatal;
-        default:
-            return slog_color_reset;
-    }
-}
-
-void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...) {
+void slog_printf (slog_stream *stream, const slog_loglevel *level, const char *fmt, ...) {
     assert (stream != NULL);
     assert (fmt != NULL);
 
@@ -110,17 +95,17 @@ void slog_printf (slog_stream *stream, slog_loglevel level, const char *fmt, ...
     va_end (va);
 
 }
-void slog_vprintf (slog_stream *stream, slog_loglevel level, const char *fmt, va_list list) {
+void slog_vprintf (slog_stream *stream, const slog_loglevel *level, const char *fmt, va_list list) {
 #define colorize()\
     if (stream->colorized) {\
-        slog_set_color (_get_level_color (level));\
+        slog_set_color (level->color);\
     }
 
     assert (stream != NULL);
     assert (fmt != NULL);
 
     /* the message should be suppressed */
-    if (stream->suppress & level)
+    if (stream->suppress & level->id && !(level->unsuppressible))
         return;
 
     va_list vac;
@@ -171,22 +156,20 @@ char slog_format (slog_stream *file, const char *fmt) {
     return 0;
 }
 
-void slog_output_to_stdout (slog_stream *file, char flag) {
+void slog_output_to_stdout (slog_stream *file, unsigned char flag) {
     assert (file != NULL);
     file->to_stdout = flag;
 }
 
-void slog_colorized (slog_stream *file, char flag) {
+void slog_colorized (slog_stream *file, unsigned char flag) {
     file->colorized = flag;
 }
 
-void slog_suppress (slog_stream *file, short mask) {
+void slog_suppress (slog_stream *file, unsigned int mask) {
     assert (file != NULL);
-    if (mask & slog_loglevel_fatal)
-        mask &= ~slog_loglevel_fatal;
     file->suppress = mask;
 }
-short slog_get_suppressed (slog_stream *file) {
+unsigned int slog_get_suppressed (slog_stream *file) {
     assert (file != NULL);
     return file->suppress;
 }

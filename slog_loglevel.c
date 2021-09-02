@@ -5,20 +5,15 @@
  * Licensed under the LGPL v2.1, see the file LICENSE in base directory. */
 
 #include "slog_loglevel.h"
+#include <limits.h>
 
-const char *slog_loglevel_tostr (const slog_loglevel level) {
-    switch (level) {
-        case slog_loglevel_message:
-            return "Message";
-        case slog_loglevel_warning:
-            return "Warning";
-        case slog_loglevel_error:
-            return "Error";
-        case slog_loglevel_debug:
-            return "Debug";
-        case slog_loglevel_fatal:
-            return "Fatal";
-        default:
-            return "";
-    }
+static unsigned int slog_lastuuid_ = (1 << 5);
+
+void slog_newloglevel (slog_loglevel *level, const char *prefix, slog_color color, unsigned char suppress) {
+    level->prefix = prefix;
+    level->color  = color;
+    level->unsuppressible = !suppress;
+
+    level->id = slog_lastuuid_;
+    slog_lastuuid_ <<= 1;
 }

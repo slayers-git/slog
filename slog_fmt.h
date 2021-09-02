@@ -40,7 +40,7 @@ SLOG_API slog_fmt *slog_fmt_create  (const char *str);
  *   message of the log entry
  * @return
  *   valid pointer to a string, NULL otherwise */
-SLOG_API char     *slog_fmt_get_str (slog_loglevel level, slog_fmt *fmt, const char *message);
+SLOG_API char     *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *message);
 
 SLOG_API void slog_fmt_clear (slog_fmt *p);
 

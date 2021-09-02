@@ -10,8 +10,8 @@
 #define SLOG_BUFSIZ      32
 
 #include "slog_fmt.h"
-#include "slog_mem.h"
 #include "slog_log.h"
+#include "slog_mem.h"
 #include <assert.h>
 #include <time.h>
 
@@ -322,7 +322,7 @@ static char *_m_strcat (char *str, const char *what) {
     strcat (res, what);
     return res;
 }
-char *slog_fmt_get_str (slog_loglevel level, slog_fmt *fmt, const char *message) {
+char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *message) {
     char *res = slog_xalloc (1),
          *buf;
     *res = 0x0;
@@ -338,7 +338,7 @@ char *slog_fmt_get_str (slog_loglevel level, slog_fmt *fmt, const char *message)
             case slog_token_none:
                 break;
             case slog_token_level:
-                buf = (char *)slog_loglevel_tostr (level);
+                buf = (char *)level->prefix;
                 aloc = slog_false;
                 break;
             case slog_token_hour12: {
