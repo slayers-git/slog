@@ -35,13 +35,13 @@ struct slog_stream {
     unsigned int suppress;
 };
 
-slog_stream *slog_create (const char *path) {
+slog_stream *slog_create (const char *path, unsigned int flags) {
     slog_stream *file = malloc (sizeof (struct slog_stream));
     if (!file)
         return NULL;
 
-    file->to_stdout = 1;
-    file->colorized = 0;
+    file->to_stdout = !(flags & slog_flags_nostdout);
+    file->colorized =  (flags & slog_flags_color);
     /* we only suppress debug messages by default */
     file->suppress  = slog_loglevel_debug_s.id;
     slog_format (file, SLOG_DEFAULT_FORMAT);
@@ -50,7 +50,8 @@ slog_stream *slog_create (const char *path) {
         file->file = NULL;
         return file;
     }
-    file->file = fopen (path, "w");
+    const char *mode = (flags & slog_flags_rewrite) ? "w" : "a";
+    file->file = fopen (path, mode);
     if (!file->file) {
         slog_log_error ("Failed to open file %s for writing", path);
         free (file);
@@ -68,7 +69,7 @@ slog_stream *slog_create (const char *path) {
     return file;
 }
 slog_stream *slog_desc (FILE *fd) {
-    slog_stream *f = slog_create (NULL);
+    slog_stream *f = slog_create (NULL, slog_flags_none);
     f->file = fd;
     return f;
 }

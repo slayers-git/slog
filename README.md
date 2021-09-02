@@ -14,7 +14,7 @@ slog is a fast and customizable logging library written in C89.
 #include <slog/slog.h>
 
 int main (void) {
-    slog_stream *logger = slog_create ("mylog.txt");
+    slog_stream *logger = slog_create ("mylog.txt", slog_flags_none);
     if (!logger)
         return -1;
     if (slog_format (logger, "[%l] %d/%M/%Y: %L") != 0) {

@@ -14,15 +14,14 @@
 #define LOGFORMAT "[%l] %d/%M/%y (%ps): %L"
 
 int main (void) {
-    /* firstly, we create a logger */
-    slog_stream *logger = slog_create (LOGFILE);
+    /* firstly, we create a logger
+     * set the color flag (messages will be colored) */
+    slog_stream *logger = slog_create (LOGFILE, slog_flags_color);
     /* check for proper initialization */
     if (!logger) {
         puts ("failed to open file " LOGFILE);
         return -1;
     }
-    /* set the color flag (messages will be colored) */
-    slog_colorized (logger, 1);
     /* set the format of the log entries */
     slog_format (logger, LOGFORMAT);
 

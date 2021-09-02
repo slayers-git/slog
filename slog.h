@@ -54,12 +54,25 @@ extern "C" {
 
 typedef struct slog_stream slog_stream;
 
+typedef enum slog_flags {
+    /* defaults */
+    slog_flags_none = 0,
+    /* rewrite the file instead of appending logs to it */
+    slog_flags_rewrite = (1 << 1),
+    /* disable logging to stdout */
+    slog_flags_nostdout = (1 << 2),
+    /* colorize the output (if supported) */
+    slog_flags_color = (1 << 3)
+} slog_flags;
+
 /* slog_create - initialize an slog_stream
  * @param path
  *   path to the stream, where the output will be written, can be NULL
+ * @param flags
+ *   stream flags
  * @return
  *   valid pointer to slog_stream on success, otherwise NULL */
-SLOG_API slog_stream *slog_create (const char *path);
+SLOG_API slog_stream *slog_create (const char *path, unsigned int flags);
 /* slog_desc - create an slog_stream structure from an existing FILE
  * @param fd
  *   pointer to the FILE structure

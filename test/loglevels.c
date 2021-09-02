@@ -9,7 +9,7 @@ int main (void) {
     /* register the loglevel (thread unsafe btw) */
     slog_newloglevel (&myloglevel, "The prefix", slog_color_yellow, 1);
     /* the prefix is registered, create the logger and show the message */
-    slog_stream *stream = slog_create (NULL);
+    slog_stream *stream = slog_create (NULL, slog_flags_color);
     if (!stream) {
         return -1;
     }
