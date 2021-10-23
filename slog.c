@@ -44,6 +44,7 @@ slog_stream *slog_create (const char *path, unsigned int flags) {
     file->colorized =  (flags & slog_flags_color);
     /* we only suppress debug messages by default */
     file->suppress  = slog_loglevel_debug_s.id;
+    file->fmt_head  = NULL;
     slog_format (file, SLOG_DEFAULT_FORMAT);
     if (!path) {
         file->path = NULL;
