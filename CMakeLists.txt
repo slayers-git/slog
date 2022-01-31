@@ -25,10 +25,11 @@ set (INCLUDE
 set (EXAMPLES
     ./test/fmt.c
     ./test/logfile.c
-    ./test/loglevels.c)
+    ./test/loglevels.c
+    ./test/puts.c)
 
 if (CYGWIN OR MINGW OR UNIX)
-    set (CMAKE_C_FLAGS_DEBUG "-Og -g")
+    set (CMAKE_C_FLAGS_DEBUG "-O0 -g")
     set (CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG -Wall")
 elseif (MSVC)
     set (CMAKE_C_FLAGS_DEBUG "/Od /Zi")

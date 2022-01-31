@@ -6,7 +6,7 @@
 
 /* fmt.c - example of creating a log string
  * To just print it on the screen standart slog.h functions should be used 
- * (see: sloh_ptintf()) */
+ * (see: slog_printf()) */
 
 /* for slog_fmt_create () and slog_fmt_get_str () */
 #include "../slog_fmt.h"

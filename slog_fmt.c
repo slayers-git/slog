@@ -267,53 +267,51 @@ void slog_fmt_clear (slog_fmt *p) {
 }
 
 /* unsigned itoa with an optional padding */
-static char *slog_itoa_pad (unsigned int n, unsigned char padding) {
-    assert (padding <= 12);
-#define pad(p)\
-    while ((signed char)padding - p > 0) {\
-        *pb = '0';\
-        ++pb;\
-        ++n_size;\
-        --padding;\
-    }
-    char buf[12],
-         *pb = buf;
-    int digit;
-    unsigned char n_size = 0;
-    if (n == 0) {
-        *pb = '0';
-        ++n_size;
-        ++pb;
-        pad (1);
-        /* gotos are sometimes useful, right? */
-        goto buf_to_res;
-    }
-    while (n > 0) {
-        digit = n % 10;
-        *pb = digit + 48;
-        ++n_size;
-        n /= 10;
-        ++pb;
-    }
-    char p = n_size;
-    pad (p);
-    --n_size;
-    char temp;
-    unsigned char i;
-    for (i = 0; i < (n_size + 1) / 2; ++i) {
-        temp = buf[i];
-        buf[i] = buf[n_size - i];
-        buf[n_size - i] = temp;
-    }
-buf_to_res:
-    buf[++n_size] = 0x0;
-    char *ret = slog_xalloc (n_size);
-    if (!ret)
-        return NULL;
-    strcpy (ret, buf);
+static char *slog_itoa_pad (char *buf, unsigned n, unsigned pad) {
+    unsigned result, nlen;
+    char *p = buf;
+    unsigned i;
 
-    return ret;
+    slog_bool needs_pad = pad ? slog_true : slog_false;
+
+    /* convert the number to ASCII */
+    if (!n) {
+        *p++ = '0';
+        nlen = 1;
+        needs_pad = ((signed)--pad > 0);
+    }
+    else {
+        for (i = 0; n; ++i) {
+            *p++ = n % 10 + 48;
+            n /= 10;
+
+            if (needs_pad && (signed)(--pad) < 0) {
+                needs_pad = slog_false;
+                break;
+            }
+        }
+        nlen = i;
+    }
+
+    /* add padding */
+    if (needs_pad) {
+        for (i = 0; i < pad; ++i) {
+            buf[nlen++] = '0';
+        }
+    }
+    
+    /* invert the order */
+    for (i = 0; i < nlen / 2; ++i) {
+        char temp = buf[i];
+        buf[i] = buf[nlen - i - 1];
+        buf[nlen - i - 1] =   temp;
+    }
+    buf[nlen] = 0x0;
+
+    return buf;
 }
+
+
 static char *_m_strcat (char *str, const char *what) {
     size_t size = strlen (str) + strlen (what) + 1;
     char *res = slog_realloc (str, size);
@@ -323,72 +321,72 @@ static char *_m_strcat (char *str, const char *what) {
     return res;
 }
 char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *message) {
-    char *res = slog_xalloc (1),
-         *buf;
+    char *res = slog_xalloc (1);
     *res = 0x0;
+
+    /* buffer for intermidiate values */ 
+    char buf[48];
+    char *ptr = buf;
+
     slog_fmt_tok *tok = fmt->fmt_tok_head;
     slog_fmt_str *str = fmt->fmt_str_head;
     time_t ep;
     time (&ep);
     struct tm *c_time = localtime (&ep);
-    slog_bool aloc = slog_true;
 
     while (tok) {
         switch (tok->token) {
             case slog_token_none:
                 break;
             case slog_token_level:
-                buf = (char *)level->prefix;
-                aloc = slog_false;
+                ptr = (char *)level->prefix;
                 break;
             case slog_token_hour12: {
                 char _b;
-                buf = slog_itoa_pad ((_b = c_time->tm_hour % 12) != 0 ? _b : 1, 2);
+                ptr = slog_itoa_pad (buf, (_b = c_time->tm_hour % 12) != 0 ? _b : 1, 2);
                 break;
             }
             case slog_token_hour24:
-                buf = slog_itoa_pad (c_time->tm_hour, 2);
+                ptr = slog_itoa_pad (buf, c_time->tm_hour, 2);
                 break;
             case slog_token_minutes:
-                buf = slog_itoa_pad (c_time->tm_min, 2);
+                ptr = slog_itoa_pad (buf, c_time->tm_min, 2);
                 break;
             case slog_token_seconds:
-                buf = slog_itoa_pad (c_time->tm_sec, 2);
+                ptr = slog_itoa_pad (buf, c_time->tm_sec, 2);
                 break;
             case slog_token_literal:
-                buf = (char *)str->str;
+                ptr = (char *)str->str;
                 str = str->next;
-                aloc = slog_false;
                 break;
             case slog_token_message:
-                buf = (char *)message;
-                aloc = slog_false;
+                ptr = (char *)message;
                 break;
             case slog_token_day:
-                buf = slog_itoa_pad (c_time->tm_mday, 2);
+                ptr = slog_itoa_pad (buf, c_time->tm_mday, 2);
                 break;
             case slog_token_month:
-                buf = slog_itoa_pad (c_time->tm_mon, 2);
+                ptr = slog_itoa_pad (buf, c_time->tm_mon + 1, 2);
                 break;
             case slog_token_year2:
-                buf = slog_itoa_pad ((SLOG_BASE_YEAR + c_time->tm_year) % 100, 2);
+                ptr = slog_itoa_pad (buf, (SLOG_BASE_YEAR + c_time->tm_year) % 100, 2);
                 break;
             case slog_token_year4:
-                buf = slog_itoa_pad (SLOG_BASE_YEAR + c_time->tm_year, 0);
+                ptr = slog_itoa_pad (buf, SLOG_BASE_YEAR + c_time->tm_year, 0);
                 break;
             case slog_token_space:
-                buf = " ";
+                ptr = " ";
                 break;
             case slog_token_runtime:
-                buf = slog_itoa_pad ((long long)(clock () / CLOCKS_PER_SEC), 0);
+                ptr = slog_itoa_pad (buf, (long long)(clock () / CLOCKS_PER_SEC), 0);
                 break;
             case slog_token_timestamp:
                 /* eventually, this will overflow. Fortunately enough it will only
                  * happen in 2038. */
-                buf = slog_itoa_pad ((int)ep, 0);
+                ptr = slog_itoa_pad (buf, (int)ep, 0);
                 break;
             case slog_token_ctime:
-                buf = asctime (c_time);
+                strncpy (buf, asctime (c_time), 48);
                 {
                     /* AFAIK windows manages strings in mysterious ways */
                     char *nlp = strchr (buf, '\r');
@@ -397,16 +395,12 @@ char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *m
                     if (nlp)
                         *nlp = 0x0;
                 }
-                aloc = slog_false;
+                ptr = buf;
                 break;
             default:
                 break;
         }
-        res = _m_strcat (res, buf);
-        if (aloc) {
-            slog_free (buf);
-        }
-        aloc = slog_true;
+        res = _m_strcat (res, ptr);
         tok = tok->next;
     }
     return res;

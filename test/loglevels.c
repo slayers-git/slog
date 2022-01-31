@@ -1,7 +1,7 @@
 #include "../slog.h"
 
 /* create a variable for the new loglevel */
-slog_loglevel myloglevel;
+static slog_loglevel myloglevel;
 
 static void myloglevel_print (slog_stream *stream, const char *, ...);
 

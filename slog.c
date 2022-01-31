@@ -95,19 +95,21 @@ void slog_printf (slog_stream *stream, const slog_loglevel *level, const char *f
     va_start (va, fmt);
     slog_vprintf (stream, level, fmt, va);
     va_end (va);
-
 }
+
 void slog_vprintf (slog_stream *stream, const slog_loglevel *level, const char *fmt, va_list list) {
 #define colorize()\
     if (stream->colorized) {\
         slog_set_color (level->color);\
     }
+#define is_suppressed()\
+    (stream->suppress & level->id && !(level->unsuppressible))
 
     assert (stream != NULL);
     assert (fmt != NULL);
 
     /* the message should be suppressed */
-    if (stream->suppress & level->id && !(level->unsuppressible))
+    if (is_suppressed ())
         return;
 
     va_list vac;
@@ -146,6 +148,38 @@ void slog_vprintf (slog_stream *stream, const slog_loglevel *level, const char *
 
     slog_free (end_buf);
 }  
+
+void slog_puts (slog_stream *stream, const slog_loglevel *level, const char *message) {
+    assert (stream != NULL);
+
+    /* the message should be suppressed */
+    if (is_suppressed ())
+        return;
+
+    char *end_buf = slog_fmt_get_str (level, stream->fmt_head, message);
+    if (!end_buf) {
+        slog_log_error ("Failed to get a formatted string");
+        return;
+    }
+
+    if (stream->file) {
+        if (stream->to_stdout) {
+            colorize ();
+            puts (end_buf);
+        }
+
+        fputs (end_buf, stream->file);
+    } else {
+        colorize ();
+        puts (end_buf);
+    }
+
+    if (stream->colorized)
+        slog_reset_color ();
+
+    slog_free (end_buf);
+}
+
 char slog_format (slog_stream *file, const char *fmt) {
     assert (file != NULL);
     
