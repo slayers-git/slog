@@ -35,6 +35,8 @@ struct slog_stream {
     unsigned int suppress;
 };
 
+extern int errno;
+
 slog_stream *slog_create (const char *path, unsigned int flags) {
     slog_stream *file = malloc (sizeof (struct slog_stream));
     if (!file)
@@ -112,33 +114,21 @@ void slog_vprintf (slog_stream *stream, const slog_loglevel *level, const char *
     if (is_suppressed ())
         return;
 
-    va_list vac;
-    va_copy (vac, list);
-    size_t len = vsnprintf (NULL, 0, fmt, vac) + 1;
-    char *message = slog_xalloc (len);
-    if (!message) {
-        slog_log_error ("Failed to allocate memory for a log message");
-        return;
-    }
-
-    vsnprintf (message, len, fmt, list);
-    va_end (vac);
-
-    char *end_buf = slog_fmt_get_str (level, stream->fmt_head, message);
-    slog_free (message);
+    char *end_buf = slog_vfmt_get_str (level, stream->fmt_head, fmt, (va_list *)list);
     if (!end_buf) {
         slog_log_error ("Failed to get a formatted string");
         return;
     }
-    len = strlen (end_buf);
+
+    size_t len = strlen (end_buf);
     if (stream->file) {
         if (stream->to_stdout) {
             colorize ();
             puts (end_buf);
         }
         end_buf[len] = '\n';
-        if (fwrite (end_buf, 1, len + 1, stream->file) != len + 1)
-            slog_log_error ("Log message was written *partially* into the file %s", stream->path);
+        if (fwrite (end_buf, 1, len + 1, stream->file) < 0)
+            slog_log_error ("Failed to write log entry to %s: %s", stream->path, strerror (errno));
     } else {
         colorize ();
         puts (end_buf);

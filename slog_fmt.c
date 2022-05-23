@@ -7,11 +7,17 @@
 /* I AM MAKING A VERY BOLD ASSUMPTION HERE 
  * THAT THE TM_BASE_YEAR IS ALWAYS 1900 */
 #define SLOG_BASE_YEAR 1900
-#define SLOG_BUFSIZ      32
+/* This defines the size of the primary allocation of strings for
+ * slog_*fmt_get_str () functions.
+ * Returned strings will be aligned to this size, so they're going 
+ * to be a multiple of this value */
+#define SLOG_BUFSIZ     512
 
 #include "slog_fmt.h"
 #include "slog_log.h"
 #include "slog_mem.h"
+
+#include <stdio.h>
 #include <assert.h>
 #include <time.h>
 
@@ -311,28 +317,31 @@ static char *slog_itoa_pad (char *buf, unsigned n, unsigned pad) {
     return buf;
 }
 
+char *slog_vfmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *mfmt, va_list *va) {
+    char buf[48],
+         *ptr;
 
-static char *_m_strcat (char *str, const char *what) {
-    size_t size = strlen (str) + strlen (what) + 1;
-    char *res = slog_realloc (str, size);
-    if (!res)
-        return NULL;
-    strcat (res, what);
-    return res;
-}
-char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *message) {
-    char *res = slog_xalloc (1);
-    *res = 0x0;
+    char *_str = slog_xalloc (SLOG_BUFSIZ);
+#   define _realloc_to_fill(need) {           \
+        bufsiz = bufsiz + need / SLOG_BUFSIZ; \
+        _str = slog_realloc (_str, bufsiz);   \
+    }
 
-    /* buffer for intermidiate values */ 
-    char buf[48];
-    char *ptr = buf;
+    /* if message is required twice or more times for some reason */
+    const char *msg_ptr = va ? NULL : mfmt;
+    size_t msg_size     = 0;
+    
+    size_t written = 0,
+           bufsiz  = SLOG_BUFSIZ;
 
     slog_fmt_tok *tok = fmt->fmt_tok_head;
     slog_fmt_str *str = fmt->fmt_str_head;
+
     time_t ep;
     time (&ep);
-    struct tm *c_time = localtime (&ep);
+
+    struct tm *c_time;
+    c_time = localtime (&ep);
 
     while (tok) {
         switch (tok->token) {
@@ -360,7 +369,24 @@ char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *m
                 str = str->next;
                 break;
             case slog_token_message:
-                ptr = (char *)message;
+                if (!msg_ptr) {
+                    va_list vac;
+                    va_copy (vac, *va);
+                    msg_size = vsnprintf (&_str[written], 0, mfmt, vac);
+                    va_end (vac);
+
+                    if (msg_size + 1 >= bufsiz - written) {
+                        _realloc_to_fill (msg_size + 1);
+                    }
+
+                    (void)vsnprintf (&_str[written], msg_size + 1, mfmt, *va);
+                    msg_ptr = &_str[written];
+                    written += msg_size;
+
+                    ptr = NULL;
+                } else {
+                    ptr = (char *)msg_ptr;
+                }
                 break;
             case slog_token_day:
                 ptr = slog_itoa_pad (buf, c_time->tm_mday, 2);
@@ -400,8 +426,25 @@ char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *m
             default:
                 break;
         }
-        res = _m_strcat (res, ptr);
+
+        if (ptr) {
+            size_t tsiz = strlen (ptr);
+            if (written + tsiz >= bufsiz) {
+                _realloc_to_fill (written + tsiz);
+            }
+            memcpy (&_str[written], ptr, tsiz);
+            written += tsiz;
+        }
+
         tok = tok->next;
     }
-    return res;
+
+    _str[written] = 0x0;
+
+    return _str;
+}
+
+/* compatibility with older versions */
+char *slog_fmt_get_str (const slog_loglevel *level, slog_fmt *fmt, const char *message) {
+    return slog_vfmt_get_str (level, fmt, message, NULL);
 }

@@ -47,7 +47,7 @@ extern "C" {
 #   endif
 #endif
 
-#define SLOG_VERSION 102
+#define SLOG_VERSION 103
 #include "slog_export.h"
 #include "slog_loglevel.h"
 #include <stdio.h>
