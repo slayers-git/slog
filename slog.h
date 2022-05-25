@@ -152,37 +152,13 @@ SLOG_API void slog_suppress (slog_stream *stream, unsigned int mask);
  *   suppressed levels */
 SLOG_API unsigned int slog_get_suppressed (slog_stream *stream);
 
-/***********************************************************/
-/* Made as inline funcs to allow for GCC's format checking */
-/***********************************************************/
-
 #include <stdarg.h>
 #include <stdlib.h>
 
-static __slog_inline __slog_fmt_check(2, 3) void slog_message (slog_stream *stream, const char *fmt, ...) {
-    va_list list;
-    va_start (list, fmt);
-    slog_vprintf (stream, slog_loglevel_message, fmt, list);
-    va_end (list);
-}
-static __slog_inline __slog_fmt_check(2, 3) void slog_warning (slog_stream *stream, const char *fmt, ...) {
-    va_list list;
-    va_start (list, fmt);
-    slog_vprintf (stream, slog_loglevel_warning, fmt, list);
-    va_end (list);
-}
-static __slog_inline __slog_fmt_check(2, 3) void slog_error (slog_stream *stream, const char *fmt, ...) {
-    va_list list;
-    va_start (list, fmt);
-    slog_vprintf (stream, slog_loglevel_error, fmt, list);
-    va_end (list);
-}
-static __slog_inline __slog_fmt_check(2, 3) void slog_debug (slog_stream *stream, const char *fmt, ...) {
-    va_list list;
-    va_start (list, fmt);
-    slog_vprintf (stream, slog_loglevel_debug, fmt, list);
-    va_end (list);
-}
+#define slog_message(stream, ...) { slog_printf (stream, slog_loglevel_message, __VA_ARGS__); }
+#define slog_warning(stream, ...) { slog_printf (stream, slog_loglevel_warning, __VA_ARGS__); }
+#define slog_error(stream, ...)   { slog_printf (stream, slog_loglevel_error, __VA_ARGS__); }
+#define slog_debug(stream, ...)   { slog_printf (stream, slog_loglevel_debug, __VA_ARGS__); }
 
 /* slog_fatal - print a fatal error message and exit the program with "status"
  * @param stream
@@ -193,7 +169,7 @@ static __slog_inline __slog_fmt_check(2, 3) void slog_debug (slog_stream *stream
  *   format string
  * @param ...
  *   variadic arguments for the format string */
-static __slog_noreturn __slog_inline __slog_fmt_check(3, 4) void slog_fatal (slog_stream *stream, int status, const char *fmt, ...) {
+__slog_noreturn static __slog_inline __slog_fmt_check(3, 4) void slog_fatal (slog_stream *stream, int status, const char *fmt, ...) {
     va_list list;
     va_start (list, fmt);
     slog_vprintf (stream, slog_loglevel_fatal, fmt, list);
